@@ -107,17 +107,14 @@ Pega esta configuración en el archivo JSON:
 ```json
 {
   "mcpServers": {
-    "soporte-tecnico": {
-      "command": "poetry",
-      "args": [
-        "run",
-        "python",
-        "src/mcp_server.py"
-      ],
-      "cwd": "/RUTA/ABSOLUTA/A/mcp_henry_masterclass",
-      "env": {}
-    }
-  }
+   "soporte-tecnico": {
+     "command": "bash",
+     "args": [
+       "-c",
+       "cd /RUTA/ABSOLUTA/A/mcp_henry_masterclass && poetry run python src/mcp_server.py"
+     ]
+   }
+ }
 }
 ```
 
