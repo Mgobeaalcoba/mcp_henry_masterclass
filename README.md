@@ -193,15 +193,23 @@ Incluye métricas clave, problemas críticos y recomendaciones.
 
 ```
 mcp_henry_masterclass/
-├── src/
-│   ├── mcp_server.py          # Servidor MCP con 3 herramientas
-│   └── mcp_henry_masterclass/  # Paquete Python principal
-├── scripts/
+│
+├── src/                        # Código fuente principal
+│   └── mcp_server.py           # Servidor MCP con 3 herramientas
+│
+├── scripts/                    # Scripts de utilidades
 │   └── setup_db.py             # Generador de datos de prueba
-├── docs/                       # Documentación adicional
-├── soporte.db                  # Base de datos SQLite (generada)
-├── pyproject.toml              # Configuración de Poetry
-└── README.md                   # Este archivo
+│
+├── tests/                      # Tests del proyecto
+│   └── __init__.py             # Inicializador del paquete de tests
+│
+├── .gitignore                  # Exclusiones de Git (Python, Poetry, macOS, Cursor, Claude)
+├── LICENSE                     # Licencia MIT
+├── README.md                   # Este archivo
+├── poetry.lock                 # Lock de dependencias (auto-generado)
+├── pyproject.toml              # Configuración de Poetry y metadatos del proyecto
+│
+└── soporte.db                  # Base de datos SQLite (generada con setup_db.py)
 ```
 
 ### Herramientas MCP disponibles
