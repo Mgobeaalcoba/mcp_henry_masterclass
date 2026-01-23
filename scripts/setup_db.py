@@ -1,0 +1,177 @@
+"""
+Script para configurar la base de datos de demostración de soporte técnico.
+Genera una BD SQLite con tickets realistas para la Masterclass de MCP.
+"""
+import sqlite3
+import random
+from datetime import datetime, timedelta
+from pathlib import Path
+
+
+# Configuración de datos realistas
+CLIENTES = [
+    "TechCorp S.A.", "Innovatech", "Digital Solutions Ltd.", "CloudBase Inc.",
+    "DataStream Corp", "SoftWarehouse", "AppDev Studios", "WebMaster Co.",
+    "Cyber Systems", "NetWork Solutions", "InfoTech Group", "CodeFactory",
+    "SmartBiz Ltd.", "Enterprise Solutions", "Global Tech", "FastServe Inc.",
+    "ApiFirst Corp", "MicroServices S.A.", "DevOps Central", "CloudNative",
+    "SecureNet", "DataVision", "TechHub", "InnovateSoft", "SystemCore"
+]
+
+ASUNTOS_TECNICOS = [
+    "Error 500 en endpoint de pagos",
+    "Fallo en autenticación OAuth2",
+    "Timeout en conexión a base de datos",
+    "Error de memoria en servidor de aplicaciones",
+    "Certificado SSL expirado",
+    "API Gateway retornando 503",
+    "Fallo en sincronización de caché Redis",
+    "Error de permisos en bucket S3",
+    "Lentitud en queries de PostgreSQL",
+    "Webhook no recibiendo eventos",
+    "Error de CORS en frontend",
+    "Fallo en proceso de deployment",
+    "Inconsistencia en datos de usuarios",
+    "Error 404 en recursos estáticos",
+    "Problema de rate limiting en API",
+    "Fallo en job de cron nocturno",
+    "Error de validación en formulario de registro",
+    "Problema con cola de mensajes RabbitMQ",
+    "Sesiones de usuario expirando prematuramente",
+    "Error al procesar archivos CSV grandes",
+    "Fallo en integración con pasarela de pago",
+    "Problema de encodificación UTF-8",
+    "Error en pipeline CI/CD",
+    "Logs no apareciendo en CloudWatch",
+    "Problema de concurrencia en transacciones",
+    "Error en migración de base de datos",
+    "Fallo en backup automático",
+    "Problema de conectividad VPN",
+    "Error en generación de reportes PDF",
+    "Fallo en servicio de notificaciones push"
+]
+
+ESTADOS = ["abierto", "cerrado"]
+PRIORIDADES = ["baja", "media", "alta", "urgente"]
+
+
+def create_database(db_path: Path):
+    """Crea la base de datos y la tabla de tickets."""
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    # Crear tabla tickets
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS tickets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            cliente TEXT NOT NULL,
+            asunto TEXT NOT NULL,
+            descripcion TEXT,
+            estado TEXT NOT NULL,
+            prioridad TEXT NOT NULL,
+            fecha_creacion TEXT NOT NULL,
+            fecha_actualizacion TEXT NOT NULL
+        )
+    """)
+
+    conn.commit()
+    return conn
+
+
+def generate_tickets(conn, num_tickets: int = 50):
+    """Genera tickets realistas en la base de datos."""
+    cursor = conn.cursor()
+
+    base_date = datetime.now() - timedelta(days=90)
+
+    for i in range(num_tickets):
+        cliente = random.choice(CLIENTES)
+        asunto = random.choice(ASUNTOS_TECNICOS)
+        prioridad = random.choices(
+            PRIORIDADES,
+            weights=[30, 40, 20, 10]  # Más tickets de baja/media prioridad
+        )[0]
+
+        # El estado depende de la antigüedad y prioridad
+        fecha_creacion = base_date + timedelta(days=random.randint(0, 90))
+        dias_desde_creacion = (datetime.now() - fecha_creacion).days
+
+        # Tickets urgentes/altos se cierran más rápido
+        if prioridad in ["urgente", "alta"]:
+            estado = "cerrado" if dias_desde_creacion > 3 else "abierto"
+        else:
+            estado = "cerrado" if dias_desde_creacion > 15 else random.choice(ESTADOS)
+
+        # Generar descripción contextual
+        descripciones = {
+            "urgente": f"URGENTE: {asunto}. Cliente reporta impacto crítico en producción. Requiere atención inmediata.",
+            "alta": f"Prioridad Alta: {asunto}. Afectando a múltiples usuarios. Necesita resolución pronto.",
+            "media": f"{asunto}. Cliente solicita revisión. Impacto moderado en operaciones.",
+            "baja": f"{asunto}. Consulta de cliente. Sin impacto crítico en servicio."
+        }
+        descripcion = descripciones[prioridad]
+
+        fecha_actualizacion = fecha_creacion + timedelta(
+            hours=random.randint(1, 72)
+        )
+
+        cursor.execute("""
+            INSERT INTO tickets
+            (cliente, asunto, descripcion, estado, prioridad, fecha_creacion, fecha_actualizacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            cliente,
+            asunto,
+            descripcion,
+            estado,
+            prioridad,
+            fecha_creacion.isoformat(),
+            fecha_actualizacion.isoformat()
+        ))
+
+    conn.commit()
+
+
+def main():
+    """Función principal para configurar la base de datos."""
+    # Ruta a la base de datos en la raíz del proyecto
+    project_root = Path(__file__).parent.parent
+    db_path = project_root / "soporte.db"
+
+    # Eliminar BD existente si hay una
+    if db_path.exists():
+        print(f"⚠️  Eliminando base de datos existente: {db_path}")
+        db_path.unlink()
+
+    print(f"🔧 Creando nueva base de datos: {db_path}")
+    conn = create_database(db_path)
+
+    print("📊 Generando 50+ tickets de soporte...")
+    generate_tickets(conn, num_tickets=60)
+
+    # Verificar datos
+    cursor = conn.cursor()
+    cursor.execute("SELECT COUNT(*) FROM tickets")
+    total = cursor.fetchone()[0]
+
+    cursor.execute("SELECT prioridad, COUNT(*) FROM tickets GROUP BY prioridad")
+    stats_prioridad = cursor.fetchall()
+
+    cursor.execute("SELECT estado, COUNT(*) FROM tickets GROUP BY estado")
+    stats_estado = cursor.fetchall()
+
+    conn.close()
+
+    print(f"\n✅ Base de datos creada exitosamente!")
+    print(f"   Total de tickets: {total}")
+    print(f"\n   Distribución por prioridad:")
+    for prioridad, count in stats_prioridad:
+        print(f"     - {prioridad}: {count}")
+    print(f"\n   Distribución por estado:")
+    for estado, count in stats_estado:
+        print(f"     - {estado}: {count}")
+    print(f"\n🎯 Listo para usar en la Masterclass!\n")
+
+
+if __name__ == "__main__":
+    main()

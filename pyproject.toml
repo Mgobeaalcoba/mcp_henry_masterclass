@@ -1,0 +1,20 @@
+[project]
+name = "mcp-henry-masterclass"
+version = "0.1.0"
+description = ""
+authors = [
+    {name = "mgobea_meli",email = "mariano.gobea@mercadolibre.com"}
+]
+readme = "README.md"
+requires-python = ">=3.12,<4.0"
+dependencies = [
+    "mcp (>=1.25.0,<2.0.0)",
+    "fastmcp (>=2.14.4,<3.0.0)"
+]
+
+[tool.poetry]
+packages = [{include = "mcp_henry_masterclass", from = "src"}]
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
