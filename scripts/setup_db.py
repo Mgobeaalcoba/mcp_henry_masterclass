@@ -82,9 +82,49 @@ def generate_tickets(conn, num_tickets: int = 50):
     """Genera tickets realistas en la base de datos."""
     cursor = conn.cursor()
 
-    base_date = datetime.now() - timedelta(days=90)
-
-    for i in range(num_tickets):
+    # Calcular fechas para la última semana
+    hoy = datetime.now()
+    hace_una_semana = hoy - timedelta(days=7)
+    
+    # Generar primero 5 tickets urgentes de hoy
+    print("  Generando 5 tickets urgentes de hoy...")
+    for i in range(5):
+        cliente = random.choice(CLIENTES)
+        asunto = random.choice(ASUNTOS_TECNICOS)
+        prioridad = "urgente"
+        estado = "abierto"  # Tickets urgentes de hoy están abiertos
+        
+        # Fecha de creación: hoy con hora aleatoria
+        fecha_creacion = hoy.replace(
+            hour=random.randint(0, 23),
+            minute=random.randint(0, 59),
+            second=random.randint(0, 59)
+        )
+        
+        descripcion = f"URGENTE: {asunto}. Cliente reporta impacto crítico en producción. Requiere atención inmediata."
+        
+        # Actualización reciente (1-3 horas después de creación)
+        fecha_actualizacion = fecha_creacion + timedelta(
+            hours=random.randint(1, 3)
+        )
+        
+        cursor.execute("""
+            INSERT INTO tickets
+            (cliente, asunto, descripcion, estado, prioridad, fecha_creacion, fecha_actualizacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, (
+            cliente,
+            asunto,
+            descripcion,
+            estado,
+            prioridad,
+            fecha_creacion.isoformat(),
+            fecha_actualizacion.isoformat()
+        ))
+    
+    # Generar el resto de tickets de la última semana
+    print(f"  Generando {num_tickets - 5} tickets de la última semana...")
+    for i in range(num_tickets - 5):
         cliente = random.choice(CLIENTES)
         asunto = random.choice(ASUNTOS_TECNICOS)
         prioridad = random.choices(
@@ -92,15 +132,18 @@ def generate_tickets(conn, num_tickets: int = 50):
             weights=[30, 40, 20, 10]  # Más tickets de baja/media prioridad
         )[0]
 
-        # El estado depende de la antigüedad y prioridad
-        fecha_creacion = base_date + timedelta(days=random.randint(0, 90))
-        dias_desde_creacion = (datetime.now() - fecha_creacion).days
+        # Fecha de creación aleatoria en la última semana (0-7 días atrás)
+        dias_atras = random.uniform(0, 7)
+        fecha_creacion = hoy - timedelta(days=dias_atras)
+        dias_desde_creacion = (hoy - fecha_creacion).days
 
-        # Tickets urgentes/altos se cierran más rápido
+        # El estado depende de la antigüedad y prioridad (ajustado para última semana)
         if prioridad in ["urgente", "alta"]:
-            estado = "cerrado" if dias_desde_creacion > 3 else "abierto"
-        else:
-            estado = "cerrado" if dias_desde_creacion > 15 else random.choice(ESTADOS)
+            estado = "cerrado" if dias_desde_creacion > 2 else "abierto"
+        elif prioridad == "media":
+            estado = "cerrado" if dias_desde_creacion > 5 else random.choice(ESTADOS)
+        else:  # baja
+            estado = random.choice(ESTADOS)
 
         # Generar descripción contextual
         descripciones = {
@@ -111,8 +154,10 @@ def generate_tickets(conn, num_tickets: int = 50):
         }
         descripcion = descripciones[prioridad]
 
+        # Actualización dentro de un rango razonable
+        max_horas = min(int(dias_desde_creacion * 24), 72)
         fecha_actualizacion = fecha_creacion + timedelta(
-            hours=random.randint(1, 72)
+            hours=random.randint(1, max(1, max_horas))
         )
 
         cursor.execute("""
@@ -146,7 +191,7 @@ def main():
     print(f"🔧 Creando nueva base de datos: {db_path}")
     conn = create_database(db_path)
 
-    print("📊 Generando 50+ tickets de soporte...")
+    print("📊 Generando 60 tickets de soporte de la última semana...")
     generate_tickets(conn, num_tickets=60)
 
     # Verificar datos
@@ -159,18 +204,28 @@ def main():
 
     cursor.execute("SELECT estado, COUNT(*) FROM tickets GROUP BY estado")
     stats_estado = cursor.fetchall()
+    
+    # Verificar tickets urgentes de hoy
+    hoy = datetime.now().date().isoformat()
+    cursor.execute("""
+        SELECT COUNT(*) FROM tickets 
+        WHERE prioridad = 'urgente' 
+        AND DATE(fecha_creacion) = ?
+    """, (hoy,))
+    urgentes_hoy = cursor.fetchone()[0]
 
     conn.close()
 
     print(f"\n✅ Base de datos creada exitosamente!")
     print(f"   Total de tickets: {total}")
+    print(f"   🔥 Tickets urgentes de hoy: {urgentes_hoy}")
     print(f"\n   Distribución por prioridad:")
     for prioridad, count in stats_prioridad:
         print(f"     - {prioridad}: {count}")
     print(f"\n   Distribución por estado:")
     for estado, count in stats_estado:
         print(f"     - {estado}: {count}")
-    print(f"\n🎯 Listo para usar en la Masterclass!\n")
+    print(f"\n🎯 Todos los tickets son de la última semana. Listo para la Masterclass!\n")
 
 
 if __name__ == "__main__":
